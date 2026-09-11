@@ -1,0 +1,22 @@
+﻿# 개인정보 및 암호화 키 (절대 커밋 금지)
+config.json
+.key
+*.key
+*.pem
+*.pfx
+*.p12
+
+# 빌드 및 바이너리
+build/
+dist/
+*.exe
+*.spec
+__pycache__/
+*.py[cod]
+*$py.class
+
+# IDE & 임시 파일
+.vscode/
+.idea/
+*.log
+.temp/
