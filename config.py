@@ -1,4 +1,4 @@
-﻿# -*- coding: utf-8 -*-
+# -*- coding: utf-8 -*-
 import json
 import logging
 import os
@@ -59,6 +59,7 @@ class ConfigManager:
             'use_sound': False,
             'auto_start': False,
             'use_toast': True,
+            'remind_pending': True,
             'cert_password': '',
             'auto_login': False,
             'auto_monitor': False,

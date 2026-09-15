@@ -425,14 +425,19 @@ class MainWindow(QMainWindow):
         options_layout.setSpacing(6)
 
         opt_grid1 = QHBoxLayout()
-        self.toast_check = QCheckBox('🔔 윈도우 팝업 알림 사용')
+        self.toast_check = QCheckBox('🔔 윈도우 팝업 알림')
         self.toast_check.setChecked(True)
         opt_grid1.addWidget(self.toast_check)
 
-        self.sound_check = QCheckBox('🔊 알림음 사용')
+        self.remind_pending_check = QCheckBox('⏳ 미결 문서 반복 알림')
+        self.remind_pending_check.setChecked(True)
+        self.remind_pending_check.setToolTip('결재 대기 문서가 남아있으면 결재를 마칠 때까지 매 주기마다 계속 팝업과 소리로 리마인드합니다.')
+        opt_grid1.addWidget(self.remind_pending_check)
+
+        self.sound_check = QCheckBox('🔊 알림음')
         opt_grid1.addWidget(self.sound_check)
 
-        self.test_toast_btn = QPushButton('🔔 팝업 알림 테스트')
+        self.test_toast_btn = QPushButton('🔔 알림 테스트')
         self.test_toast_btn.setStyleSheet('font-weight: bold; background-color: #e8f0fe; color: #1967d2; height: 28px;')
         self.test_toast_btn.clicked.connect(self.test_toast_notification)
         opt_grid1.addWidget(self.test_toast_btn)
@@ -574,6 +579,7 @@ class MainWindow(QMainWindow):
         self.auto_login_check.setChecked(cfg.get('auto_login', False))
         self.auto_monitor_check.setChecked(cfg.get('auto_monitor', False))
         self.toast_check.setChecked(cfg.get('use_toast', True))
+        self.remind_pending_check.setChecked(cfg.get('remind_pending', True))
 
         self.cert_name_input.setText(cfg.get('cert_name', ''))
         self.neis_order_spin.setValue(cfg.get('neis_order', 0))
@@ -607,6 +613,7 @@ class MainWindow(QMainWindow):
         self.config_mgr.set('auto_login', self.auto_login_check.isChecked())
         self.config_mgr.set('auto_monitor', self.auto_monitor_check.isChecked())
         self.config_mgr.set('use_toast', self.toast_check.isChecked())
+        self.config_mgr.set('remind_pending', self.remind_pending_check.isChecked())
         self.config_mgr.set('cert_name', self.cert_name_input.text().strip())
         self.config_mgr.set('neis_order', self.neis_order_spin.value())
 
@@ -633,6 +640,7 @@ class MainWindow(QMainWindow):
         self.auto_login_check.toggled.connect(self.persist_settings)
         self.auto_monitor_check.toggled.connect(self.persist_settings)
         self.toast_check.toggled.connect(self.persist_settings)
+        self.remind_pending_check.toggled.connect(self.persist_settings)
         self.cert_name_input.textChanged.connect(self.persist_settings)
         self.neis_order_spin.valueChanged.connect(self.persist_settings)
 
@@ -675,7 +683,7 @@ class MainWindow(QMainWindow):
             self.append_log(f'모니터링이 시작되었습니다. (확인 주기: {interval}분 | 제로 메모리 모드)')
 
     def handle_updates(self, results, is_first):
-        """모니터링 결과 수신 시 알림 처리"""
+        """모니터링 결과 수신 시 알림 처리 (신규 증가 및 미결 문서 반복 리마인드 지원)"""
         nice_count = results.get('nice', 0)
         edufine_count = results.get('edufine', 0)
         has_pending = (nice_count > 0 or edufine_count > 0)
@@ -692,13 +700,26 @@ class MainWindow(QMainWindow):
             self._notify(results, msg)
         else:
             if increased:
+                # 1. 신규 문서가 도착하여 건수가 증가한 경우
                 msg = f'새로운 문서가 도착했습니다! (나이스: {nice_count}건, 에듀파인: {edufine_count}건)'
                 self.logger.info(msg)
                 if self.sound_check.isChecked():
                     Utils.play_notification_sound()
                 self._notify(results, msg)
+            elif has_pending and self.remind_pending_check.isChecked():
+                # 2. 건수 증가는 없으나 미결 문서가 남아있고 반복 알림 옵션이 켜진 경우 (리마인드 모드)
+                msg = f'⏳ 결재 대기 중인 문서가 있습니다! (나이스: {nice_count}건, 에듀파인: {edufine_count}건)'
+                self.logger.info(msg)
+                if self.sound_check.isChecked():
+                    Utils.play_notification_sound()
+                self._notify(results, msg)
+                self.append_log(f'🔔 [반복 알림] 미결 문서 잔여 안내: 나이스 {nice_count}건, 에듀파인 {edufine_count}건')
             else:
-                self.append_log(f'ℹ️ 정기 점검 완료: 나이스 {nice_count}건, 에듀파인 {edufine_count}건 (신규 도착 문서 없음)')
+                # 3. 미결 문서가 전혀 없거나 반복 알림이 꺼진 경우
+                if not has_pending:
+                    self.append_log('✨ 정기 점검 완료: 모든 미결 문서가 결재 처리되었습니다. (미결 0건)')
+                else:
+                    self.append_log(f'ℹ️ 정기 점검 완료: 나이스 {nice_count}건, 에듀파인 {edufine_count}건 (신규 도착 문서 없음)')
 
         self.last_results = results
 
