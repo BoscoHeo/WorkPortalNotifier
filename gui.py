@@ -827,18 +827,8 @@ class MainWindow(QMainWindow):
         self._update_thread.start()
 
     def _on_update_available(self, latest_tag, release_notes, download_url):
-        self.append_log(f'🎉 새로운 버전({latest_tag})이 출시되었습니다!')
-        msg = (
-            f"새로운 버전({latest_tag})이 있습니다!\n"
-            f"(현재 버전: {APP_VERSION})\n\n"
-            f"[업데이트 내용]\n"
-            f"{release_notes[:300] if release_notes else '성능 개선 및 버그 수정'}\n\n"
-            f"지금 바로 자동 업데이트하시겠습니까?\n"
-            f"(확인을 누르면 최신 파일 다운로드 후 자동 재실행됩니다)"
-        )
-        res = QMessageBox.question(self, '새 버전 업데이트 알림', msg, QMessageBox.Yes | QMessageBox.No)
-        if res == QMessageBox.Yes:
-            self._start_update_download(download_url)
+        self.append_log(f'🎉 새로운 버전({latest_tag}) 발견! 확인 절차 없이 즉시 최신 버전으로 자동 업데이트합니다.')
+        self._start_update_download(download_url)
 
     def _on_no_update(self):
         if getattr(self, '_manual_update_check', False):
@@ -852,8 +842,9 @@ class MainWindow(QMainWindow):
 
     def _start_update_download(self, download_url):
         self.append_log('최신 버전 다운로드를 시작합니다...')
-        self._progress_dialog = QProgressDialog('최신 버전 다운로드 중...', '취소', 0, 100, self)
-        self._progress_dialog.setWindowTitle('자동 업데이트')
+        self._progress_dialog = QProgressDialog('최신 버전으로 자동 업데이트 진행 중...', None, 0, 100, self)
+        self._progress_dialog.setCancelButton(None)
+        self._progress_dialog.setWindowTitle('무인 자동 업데이트')
         self._progress_dialog.setWindowModality(Qt.WindowModal)
         self._progress_dialog.setValue(0)
         self._progress_dialog.show()
