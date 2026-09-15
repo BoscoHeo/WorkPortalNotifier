@@ -63,9 +63,15 @@ def custom_check_updates(self, headless=False):
     - 세션 만료 및 타임아웃 오류 원천 차단
     """
     with self._action_lock:
-        if self.driver and getattr(self, 'driver_owner', '') != 'monitor':
-            self.logger.info('선생님께서 바로가기로 사용 중인 브라우저가 열려 있어 이번 확인은 건너뜁니다.')
-            return None
+        # 1. 기존 드라이버 생존 여부 실시간 점검 (닫힌 창 찌꺼기 즉시 정리)
+        if self.driver:
+            if not self.is_driver_alive():
+                # 선생님께서 창을 닫으셨으나 메모리 객체가 남아있는 경우 즉시 완전 정리
+                self.close_driver()
+            elif getattr(self, 'driver_owner', '') != 'monitor':
+                # 선생님께서 직접 바로가기(나이스/에듀파인) 창을 열어두고 작업 중이신 경우
+                self.logger.info('선생님께서 직접 열어두신 업무 창이 활성화되어 있어 작업을 방해하지 않기 위해 이번 점검을 1회 건너뜁니다. (창을 닫으시면 스텔스 자동 점검이 즉시 재개됩니다)')
+                return None
 
         # 백그라운드 스텔스 모드 플래그 가동
         PortalEngine._active_stealth_monitor = True
@@ -247,8 +253,8 @@ class MonitoringThread(QThread):
                     # 브라우저 창이 이미 열려있어 확인을 건너뛴 경우
                     self._consecutive_skips += 1
                     self.log_signal.emit(
-                        f'⚠️ 바로가기(또는 자동로그인)로 열려 있는 브라우저 창이 감지되어 이번 확인을 1회 건너뛰었습니다. '
-                        f'(해당 창을 닫아주시면 다음 주기에 정상 확인됩니다)'
+                        f'ℹ️ 선생님의 작업 보호: 직접 열어두신 나이스/에듀파인 창이 활성화되어 있어 점검을 1회 건너뛰었습니다. '
+                        f'(창을 닫으시면 다음 주기부터 스텔스 모드로 자동 점검됩니다)'
                     )
                 else:
                     self._consecutive_skips = 0
